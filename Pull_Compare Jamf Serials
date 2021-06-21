@@ -1,0 +1,42 @@
+import requests
+import csv
+import getpass
+
+
+unhurl = "https://usnhjamf.jamfcloud.com/uapi/v1/" # Base URL for every USNH Request
+psuurl = "https://psujamf.jamfcloud.com:8443/uapi/v1/" # Base URL for every PSU Request
+GET_ALL_ENDPOINT = "computers-inventory/?section=HARDWARE&page-size=10000" # Get information about all computers
+GET_SPECIFIC_ENDPOINT = "computers-inventory-detail/" # Get information about a specific computer
+
+def generatetoken(tokenURL,company):
+    api_user = input(f"Enter your {company} username: ")
+    api_password = getpass.getpass(prompt=f'Enter your {company} Password: ', stream=None)
+    r = requests.post(f'{tokenURL}', auth=(api_user, api_password))
+    return r.json()["token"]
+
+
+def getallserials(url,token):
+    r = requests.get(f'{url}{GET_ALL_ENDPOINT}', headers={'Authorization': f'Bearer {token}'}) # Combine the base URL with the GET ALL to get every computer
+    all_computers = r.json()["results"] # Take the results section and make it a var containing all computers
+    listofserials = []
+    for computer in all_computers:
+        listofserials.append(computer["hardware"]["serialNumber"])
+    return listofserials
+
+
+tokenunh = generatetoken("https://usnhjamf.jamfcloud.com/uapi/auth/tokens","unh")
+tokenpsu = generatetoken("https://psujamf.jamfcloud.com:8443/uapi/auth/tokens","psu")
+
+psulist = getallserials(psuurl,tokenpsu)
+unhlist = getallserials(unhurl,tokenunh)
+finallist = []
+
+for element in psulist:
+    if element not in unhlist:
+        finallist.append(element)
+
+with open("/Users/adm-hjarvis/Desktop/Migrationlist.csv", "w") as csvfile:
+    csvwriter = csv.writer(csvfile)
+    for element in finallist:
+        csvwriter.writerow([element])
+
